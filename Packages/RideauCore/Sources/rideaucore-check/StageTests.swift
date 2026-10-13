@@ -63,7 +63,7 @@ let stageTests: [Test] = [
         let hidden = [app(12, "m", "Messages", rank: 1), app(11, "l", "Mail", rank: 2), app(17, "f", "Finder")]
         let backstage = Backstage(loweredAt: .now, frontmost: nil, hidden: hidden)
         let now = hidden.map { var a = $0; a.isHidden = true; return a }
-        let plan = Stage.planRaise(backstage: backstage, running: now)
+        let plan = Stage.planRaise(backstage: backstage, running: now, afterCrash: true)
         expectEqual(plan.unhide.map(\.pid), [17, 11, 12])
         expect(plan.activate == nil)
         expect(plan.gone.isEmpty)
@@ -72,13 +72,13 @@ let stageTests: [Test] = [
         let hidden = [app(1, "a", "A", rank: 0), app(2, "b", "B", rank: 1), app(3, "c", "C", rank: 2)]
         let backstage = Backstage(loweredAt: .now, frontmost: nil, hidden: hidden)
         let now = [app(1, "a", "A", hidden: false), app(22, "b", "B", hidden: true), app(3, "c", "C", hidden: true)]
-        let plan = Stage.planRaise(backstage: backstage, running: now)
+        let plan = Stage.planRaise(backstage: backstage, running: now, afterCrash: true)
         expectEqual(plan.unhide.map(\.pid), [3])
         expectEqual(plan.gone.map(\.pid), [2])
     },
     Test("planRaise : un pid reutilise par une autre app n'est pas reaffiche") {
         let backstage = Backstage(loweredAt: .now, frontmost: nil, hidden: [app(1, "a", "A")])
-        let plan = Stage.planRaise(backstage: backstage, running: [app(1, "z", "Z", hidden: true)])
+        let plan = Stage.planRaise(backstage: backstage, running: [app(1, "z", "Z", hidden: true)], afterCrash: false)
         expect(plan.unhide.isEmpty)
         expectEqual(plan.gone.map(\.pid), [1])
     },
@@ -86,12 +86,22 @@ let stageTests: [Test] = [
         let front = app(10, "s", "Safari", rank: 0)
         let hidden = [front, app(11, "m", "Mail", rank: 1)]
         let masked = hidden.map { var a = $0; a.isHidden = true; return a }
-        let plan = Stage.planRaise(backstage: Backstage(loweredAt: .now, frontmost: front, hidden: hidden), running: masked)
+        let plan = Stage.planRaise(backstage: Backstage(loweredAt: .now, frontmost: front, hidden: hidden), running: masked, afterCrash: false)
         expectEqual(plan.activate?.pid, 10)
         expectEqual(plan.unhide.map(\.pid), [11, 10])
         let kept = Stage.planRaise(backstage: Backstage(loweredAt: .now, frontmost: front, hidden: [hidden[1]]),
-                                   running: [front, masked[1]])
+                                   running: [front, masked[1]], afterCrash: false)
         expect(kept.activate == nil)
+    },
+    Test("planRaise en levee normale : toute app encore la revient, meme pas encore masquee (masquage asynchrone)") {
+        let backstage = Backstage(loweredAt: .now, frontmost: nil, hidden: [app(1, "a", "A", rank: 0), app(2, "b", "B", rank: 1)])
+        let now = [app(1, "a", "A", hidden: false), app(2, "b", "B", hidden: true)]
+        expectEqual(Stage.planRaise(backstage: backstage, running: now, afterCrash: false).unhide.map(\.pid), [2, 1])
+    },
+    Test("planRaise apres un arret inattendu : seulement les apps encore masquees") {
+        let backstage = Backstage(loweredAt: .now, frontmost: nil, hidden: [app(1, "a", "A", rank: 0), app(2, "b", "B", rank: 1)])
+        let now = [app(1, "a", "A", hidden: false), app(2, "b", "B", hidden: true)]
+        expectEqual(Stage.planRaise(backstage: backstage, running: now, afterCrash: true).unhide.map(\.pid), [2])
     },
     Test("Backstage.releasing retire une app que l'utilisateur a reaffichee") {
         let backstage = Backstage(loweredAt: .now, frontmost: nil, hidden: [app(1, "a", "A"), app(2, "b", "B")])

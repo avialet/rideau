@@ -125,6 +125,13 @@ public struct RaisePlan: Equatable, Sendable {
     public var activate: AppSnapshot?
     /// Apps quittees (ou relancees) depuis : rien a faire.
     public var gone: [AppSnapshot]
+
+    public init(unhide: [AppSnapshot], activate: AppSnapshot?, gone: [AppSnapshot]) {
+        self.unhide = unhide
+        self.activate = activate
+        self.gone = gone
+    }
+
 }
 
 public enum Stage {
@@ -142,9 +149,12 @@ public enum Stage {
         .sorted(by: frontToBack)
     }
 
-    /// Restitution exacte : seulement les apps masquees par Rideau, encore la sous le meme pid et toujours
-    /// masquees, de l'arriere vers l'avant (apps sans rang d'abord : elles n'avaient rien a l'ecran).
-    public static func planRaise(backstage: Backstage, running: [AppSnapshot]) -> RaisePlan {
+    /// Restitution exacte : seulement les apps masquees par Rideau, encore la sous le meme pid, de l'arriere
+    /// vers l'avant (apps sans rang d'abord : elles n'avaient rien a l'ecran). En levee normale, toutes : celles
+    /// que l'utilisateur a reaffichees ont deja ete retirees (`releasing`), et une levee juste apres la baisse
+    /// precede parfois le masquage (asynchrone). Apres un arret inattendu (`afterCrash`), rien n'a suivi
+    /// l'utilisateur : seules les apps encore masquees reviennent.
+    public static func planRaise(backstage: Backstage, running: [AppSnapshot], afterCrash: Bool) -> RaisePlan {
         var unhide: [AppSnapshot] = []
         var gone: [AppSnapshot] = []
         for app in backstage.hidden {
@@ -152,7 +162,7 @@ public enum Stage {
                 gone.append(app)
                 continue
             }
-            if now.isHidden { unhide.append(app) }
+            if now.isHidden || !afterCrash { unhide.append(app) }
         }
         unhide.sort { !frontToBack($0, $1) }
         let activate = backstage.frontmost.flatMap { front in unhide.first { $0.isSameInstance(as: front) } }

@@ -133,7 +133,7 @@ final class CurtainController {
         statusItem?.hide()
         var count = 0
         if let stage = backstage {
-            let plan = Stage.planRaise(backstage: stage, running: hider.runningApps())
+            let plan = Stage.planRaise(backstage: stage, running: hider.runningApps(), afterCrash: machine.recovered)
             for (index, app) in plan.unhide.enumerated() {
                 if index > 0 { try? await Task.sleep(for: .milliseconds(40)) }
                 hider.unhide(app)
@@ -158,7 +158,7 @@ final class CurtainController {
         cover?.hide()
         statusItem?.hide()
         if let stage = backstage {
-            let plan = Stage.planRaise(backstage: stage, running: hider.runningApps())
+            let plan = Stage.planRaise(backstage: stage, running: hider.runningApps(), afterCrash: machine.recovered)
             for app in plan.unhide { hider.unhide(app) }
             if let front = plan.activate { hider.activate(front) }
         }
