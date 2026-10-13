@@ -14,11 +14,12 @@
 
 ## Ce que fait Rideau
 
-<!-- a adapter : trois idees, une phrase chacune -->
+Avant un partage d'écran ou une démo, un appui sur **⌥⇧⌘Espace** baisse le rideau ; un second remet tout à l'identique.
 
-- **Première idée.** Une phrase.
-- **Deuxième idée.** Une phrase.
-- **Rester chez vous.** Tout est stocké sur votre Mac. Aucun compte, aucun serveur, aucune télémétrie.
+- **Les autres apps passent en coulisses.** Mail, Messages et le reste se masquent ; l'app que vous présentez reste devant, les visios (Zoom, Teams, Webex, FaceTime) restent visibles.
+- **Le bureau se tait.** Icônes et widgets disparaissent sous votre fond d'écran (ou une couleur unie), sur chaque écran, sans toucher au Finder.
+- **Tout revient exactement.** Seules les apps masquées par Rideau reviennent, dans leur ordre ; celles que vous aviez masquées vous-même restent masquées. Même après un plantage, Rideau propose de lever le rideau à son lancement.
+- **Sans autorisation.** Ni Accessibilité, ni Enregistrement de l'écran. Aucun compte, aucun serveur, aucune télémétrie.
 
 ## Installation
 
@@ -53,20 +54,28 @@ Le seul échange réseau de Rideau est cette lecture de la version publiée. Auc
 
 ## Notice
 
-<!-- a adapter -->
-
-- **Raccourci global** (⌃⌥⇧Espace par défaut, modifiable dans les Réglages) : affiche ou masque Rideau depuis n'importe quelle app.
-- Fermer la fenêtre ne quitte pas l'app : le raccourci et l'icône de la barre des menus restent actifs. **⌘Q** quitte vraiment.
-- Le lien `rideau://` ouvre la fenêtre principale.
+- **Raccourci global** (⌥⇧⌘Espace par défaut, modifiable dans les Réglages) : baisse le rideau, puis le lève.
+- **Scène** (fenêtre principale) : l'état du rideau, les apps qui passeront en coulisses, et ce que le rideau cache :
+  fenêtres (garder l'app au premier plan, laisser les apps en plein écran), apps toujours visibles, bureau
+  (fond d'écran ou couleur unie), notifications.
+- **Rideau baissé** : l'icône du rideau fermé s'affiche dans la barre des menus (même quand Vialet rassemble les apps) ; un clic le lève.
+- **Notifications** : macOS les coupe pendant un partage d'écran si l'option « Autoriser les notifications lors de la
+  recopie ou du partage de l'écran » est désactivée (Réglages Système › Notifications) ; la Scène y mène.
+- Fermer la fenêtre ne quitte pas l'app : le raccourci et l'icône de la barre des menus restent actifs.
+  **⌘Q** quitte vraiment, et lève toujours le rideau.
+- Liens et automatisations (Raccourcis, Vialet) : `rideau://basculer`, `rideau://baisser`, `rideau://lever` ;
+  `rideau://` ouvre la Scène.
 - **À propos de Rideau** (menu de l'app ou de la barre des menus) : version, licence MIT, liens vers le site et le code source.
 
 ### Vos données
 
+Pas de base de données. Tant que le rideau est baissé, la liste des apps à réafficher est gardée dans :
+
 ```text
-~/Library/Application Support/Rideau/rideau.sqlite
+~/Library/Application Support/Rideau/scene.json
 ```
 
-Pour sauvegarder, copiez ce dossier. Pour repartir de zéro, quittez l'app et supprimez-le.
+Le fichier disparaît quand le rideau se lève. Les réglages vivent dans les préférences (`fr.vialet.rideau`).
 
 ## Compiler depuis les sources
 
@@ -91,7 +100,7 @@ make dmg-layout   # fond et disposition de la fenêtre du DMG, dans scripts/dmg 
 
 | Dossier | Contenu |
 |---|---|
-| `Packages/RideauCore` | Noyau sans interface : modèles, base SQLite ([GRDB](https://github.com/groue/GRDB.swift)), logique |
+| `Packages/RideauCore` | Noyau sans interface : plans de masquage et de restitution, état sauvegardé, machine du rideau |
 | `Rideau` | L'application SwiftUI ; `App/Brand.swift` porte son identité |
 | `scripts` | Assemblage de l'app et du DMG ; `scripts/dmg` : fond et disposition de sa fenêtre |
 | `docs` | [Publier une version](docs/publier-une-version.md), [tests](docs/tests.md), notes de version |
@@ -103,7 +112,7 @@ les utilisateurs reçoivent la mise à jour dans l'app.
 
 ## Confidentialité
 
-Rideau ne collecte rien. Vos données ne quittent jamais votre Mac. La seule requête
+Rideau ne collecte rien et ne lit ni le titre ni le contenu des fenêtres (seulement leur ordre). La seule requête
 réseau est la lecture de la dernière version publiée sur GitHub, que vous pouvez désactiver.
 
 ## Licence
