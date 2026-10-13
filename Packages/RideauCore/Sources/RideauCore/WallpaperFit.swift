@@ -10,7 +10,7 @@ public enum WallpaperScaling: Int, Sendable {
 
 /// Rectangle ou dessiner le fond d'ecran pour qu'il recouvre exactement celui de macOS.
 public enum WallpaperFit {
-    /// Options absentes : « Remplir l'ecran ».
+    /// Options absentes : "Remplir l'ecran".
     public static let defaultScaling = WallpaperScaling.proportionallyUpOrDown
     public static let defaultAllowClipping = true
 
