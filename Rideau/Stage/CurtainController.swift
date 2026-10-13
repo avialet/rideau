@@ -129,7 +129,6 @@ final class CurtainController {
     // MARK: Lever
 
     private func performRaise() async {
-        cover?.hide()
         statusItem?.hide()
         var count = 0
         if let stage = backstage {
@@ -145,6 +144,8 @@ final class CurtainController {
             }
             trace("leve : reaffichees \(plan.unhide.map(\.name)), parties \(plan.gone.map(\.name)), reactivee \(plan.activate?.name ?? "-")")
         }
+        // Couverture retiree apres la restitution : les icones du bureau ne clignotent pas entre deux apps.
+        cover?.hide()
         file.erase()
         backstage = nil
         machine.finish()
@@ -155,13 +156,13 @@ final class CurtainController {
     /// Lever sans attendre (fin de Rideau) : tout ce qui a ete masque revient.
     func raiseNow() {
         guard machine.state != .raised || backstage != nil else { return }
-        cover?.hide()
         statusItem?.hide()
         if let stage = backstage {
             let plan = Stage.planRaise(backstage: stage, running: hider.runningApps(), afterCrash: machine.recovered)
             for app in plan.unhide { hider.unhide(app) }
             if let front = plan.activate { hider.activate(front) }
         }
+        cover?.hide()
         file.erase()
         backstage = nil
     }
