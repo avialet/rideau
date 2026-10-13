@@ -1,0 +1,64 @@
+name: Rideau
+options:
+  bundleIdPrefix: fr.vialet
+  deploymentTarget:
+    macOS: "26.0"
+  xcodeVersion: "26.0"
+  createIntermediateGroups: true
+# Version.xcconfig est ecrit par `make gen` depuis VERSION (MARKETING_VERSION).
+configFiles:
+  Debug: Version.xcconfig
+  Release: Version.xcconfig
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    CODE_SIGN_IDENTITY: "-"
+    CODE_SIGN_STYLE: Manual
+    DEVELOPMENT_TEAM: ""
+    CURRENT_PROJECT_VERSION: "1"
+packages:
+  VialetKit:
+    url: https://github.com/avialet/vialetkit.git
+    # Mineur epingle (0.2.x) : en 0.x, un changement cassant du kit monte le mineur.
+    minorVersion: "0.2.0"
+  RideauCore:
+    path: Packages/RideauCore
+targets:
+  Rideau:
+    type: application
+    platform: macOS
+    sources:
+      - path: Rideau
+        excludes:
+          - "Resources/Info.plist"
+    dependencies:
+      - package: VialetKit
+      - package: RideauCore
+    info:
+      path: Rideau/Resources/Info.plist
+      properties:
+        CFBundleDisplayName: Rideau
+        CFBundleName: Rideau
+        LSMinimumSystemVersion: "26.0"
+        NSHumanReadableCopyright: "\u00A9 2026 Aur\u00E9lien Vialet" # YAML : \u00A9 = signe copyright
+        CFBundleURLTypes:
+          - CFBundleURLName: fr.vialet.rideau
+            CFBundleURLSchemes: [rideau]
+        LSApplicationCategoryType: public.app-category.productivity
+        CFBundleIconFile: AppIcon
+    entitlements:
+      path: Rideau/Resources/Rideau.entitlements
+      properties:
+        com.apple.security.app-sandbox: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: fr.vialet.rideau
+        ENABLE_HARDENED_RUNTIME: false
+schemes:
+  Rideau:
+    build:
+      targets:
+        Rideau: all
+    run:
+      config: Debug
