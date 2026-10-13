@@ -69,8 +69,8 @@ final class SnapshotHider: Hider {
     func runningApps() -> [AppSnapshot] { apps.map(\.app) }
     func frontmostPID() -> Int32? { 501 }
 
-    func hide(_ app: AppSnapshot) -> Bool { set(app.pid, hidden: true) }
-    func unhide(_ app: AppSnapshot) -> Bool { set(app.pid, hidden: false) }
+    func hide(_ app: AppSnapshot) { set(app.pid, hidden: true) }
+    func unhide(_ app: AppSnapshot) { set(app.pid, hidden: false) }
     func activate(_ app: AppSnapshot) {}
 
     func icon(for app: AppSnapshot) -> NSImage? {
@@ -81,10 +81,9 @@ final class SnapshotHider: Hider {
         return icon
     }
 
-    private func set(_ pid: Int32, hidden: Bool) -> Bool {
-        guard let i = apps.firstIndex(where: { $0.app.pid == pid }) else { return false }
+    private func set(_ pid: Int32, hidden: Bool) {
+        guard let i = apps.firstIndex(where: { $0.app.pid == pid }) else { return }
         apps[i].app.isHidden = hidden
-        return true
     }
 
     /// Carre arrondi colore et symbole blanc, a la maniere d'une icone d'app.

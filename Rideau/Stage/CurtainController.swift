@@ -93,28 +93,37 @@ final class CurtainController {
         let apps = hider.runningApps()
         let frontPID = hider.frontmostPID()
         let plan = Stage.planLower(apps: apps, frontmostPID: frontPID, policy: settings.policy(ownPID: ownPID))
-        var stage = Backstage(loweredAt: .now, frontmost: apps.first { $0.pid == frontPID }, hidden: plan)
+        let stage = Backstage(loweredAt: .now, frontmost: apps.first { $0.pid == frontPID }, hidden: plan)
         // Sauvegarde avant de masquer : un plantage au milieu laisse de quoi tout lever.
         try? file.write(stage)
-        var hidden: Set<Int32> = []
-        var refused: [String] = []
-        for app in plan {
-            if hider.hide(app) { hidden.insert(app.pid) } else { refused.append(app.name) }
-        }
-        stage = stage.keeping(pids: hidden)
-        stage.refused = refused
-        try? file.write(stage)
+        for app in plan { hider.hide(app) }
         backstage = stage
         machine.finish()
         cover?.show()
         statusItem?.show { [weak self] in self?.raise() }
-        if live, NSApp.isActive {
-            // Baisse depuis la Scene ou une URL : la Scene s'efface, l'app presentee reprend la main.
+        if live {
+            // La Scene s'efface (rien de Rideau a l'ecran pendant la presentation) ; baisse depuis la Scene ou
+            // une URL : l'app presentee reprend la main.
             WindowSummoner.mainWindow?.close()
-            if let front = stage.frontmost, !hidden.contains(front.pid) { hider.activate(front) }
+            if NSApp.isActive, let front = stage.frontmost, !plan.contains(where: { $0.pid == front.pid }) {
+                hider.activate(front)
+            }
         }
-        if settings.showToast { toast?.show(.lowered(count: stage.hidden.count)) }
+        if settings.showToast { toast?.show(.lowered(count: plan.count)) }
         refreshPreview()
+        Task { await verifyLowered(stage.loweredAt) }
+    }
+
+    /// Un instant apres : les apps restees visibles sont des refus, retirees de ce que l'on reaffichera.
+    private func verifyLowered(_ loweredAt: Date) async {
+        try? await Task.sleep(for: .milliseconds(900))
+        guard machine.state == .lowered, let stage = backstage, stage.loweredAt == loweredAt else { return }
+        let next = stage.refusing(Stage.refusals(backstage: stage, running: hider.runningApps()))
+        if next != stage {
+            backstage = next
+            try? file.write(next)
+        }
+        trace("baisse : masquees \(next.hidden.map(\.name)), refus \(next.refused), devant \(next.frontmost?.name ?? "-")")
     }
 
     // MARK: Lever
@@ -127,12 +136,14 @@ final class CurtainController {
             let plan = Stage.planRaise(backstage: stage, running: hider.runningApps())
             for (index, app) in plan.unhide.enumerated() {
                 if index > 0 { try? await Task.sleep(for: .milliseconds(40)) }
-                if hider.unhide(app) { count += 1 }
+                hider.unhide(app)
             }
+            count = plan.unhide.count
             if let front = plan.activate {
                 try? await Task.sleep(for: .milliseconds(80))
                 hider.activate(front)
             }
+            trace("leve : reaffichees \(plan.unhide.map(\.name)), parties \(plan.gone.map(\.name)), reactivee \(plan.activate?.name ?? "-")")
         }
         file.erase()
         backstage = nil
@@ -148,7 +159,7 @@ final class CurtainController {
         statusItem?.hide()
         if let stage = backstage {
             let plan = Stage.planRaise(backstage: stage, running: hider.runningApps())
-            for app in plan.unhide { _ = hider.unhide(app) }
+            for app in plan.unhide { hider.unhide(app) }
             if let front = plan.activate { hider.activate(front) }
         }
         file.erase()
@@ -161,6 +172,20 @@ final class CurtainController {
         let next = stage.releasing(pid: pid)
         backstage = next
         try? file.write(next)
+    }
+
+    /// Journal des essais reels (DEBUG, `RIDEAU_TRACE=<fichier>`).
+    private func trace(_ line: String) {
+        #if DEBUG
+        guard let path = ProcessInfo.processInfo.environment["RIDEAU_TRACE"],
+              let handle = FileHandle(forWritingAtPath: path) ?? {
+                  FileManager.default.createFile(atPath: path, contents: nil)
+                  return FileHandle(forWritingAtPath: path)
+              }() else { return }
+        handle.seekToEndOfFile()
+        handle.write(Data((line + "\n").utf8))
+        try? handle.close()
+        #endif
     }
 
     #if DEBUG

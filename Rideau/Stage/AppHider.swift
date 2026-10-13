@@ -10,8 +10,10 @@ protocol Hider: AnyObject {
     func runningApps() -> [AppSnapshot]
     /// App ordinaire au premier plan, hors Rideau (la derniere active si Rideau est devant).
     func frontmostPID() -> Int32?
-    func hide(_ app: AppSnapshot) -> Bool
-    func unhide(_ app: AppSnapshot) -> Bool
+    /// Demande de masquage. Sur macOS 26, `hide()` et `unhide()` peuvent rendre faux et agir quand meme :
+    /// on ne s'y fie pas, l'etat reel (`isHidden`) est relu ensuite.
+    func hide(_ app: AppSnapshot)
+    func unhide(_ app: AppSnapshot)
     func activate(_ app: AppSnapshot)
     func icon(for app: AppSnapshot) -> NSImage?
 }
@@ -42,7 +44,15 @@ final class SystemHider: Hider {
     func runningApps() -> [AppSnapshot] {
         let ranks = WindowReader.ranks()
         let fullScreen = WindowReader.fullScreenPIDs()
-        return NSWorkspace.shared.runningApplications.compactMap { app in
+        var running = NSWorkspace.shared.runningApplications
+        #if DEBUG
+        // Essais reels sans toucher aux autres apps : seules ces apps (lancees pour l'essai) sont vues.
+        if let only = ProcessInfo.processInfo.environment["RIDEAU_ONLY_BUNDLES"] {
+            let allowed = Set(only.split(separator: ",").map(String.init))
+            running = running.filter { allowed.contains($0.bundleIdentifier ?? "") }
+        }
+        #endif
+        return running.compactMap { app in
             guard !app.isTerminated else { return nil }
             let pid = app.processIdentifier
             return AppSnapshot(pid: pid, bundleID: app.bundleIdentifier,
@@ -62,15 +72,23 @@ final class SystemHider: Hider {
         return pid
     }
 
-    func hide(_ app: AppSnapshot) -> Bool { running(app)?.hide() ?? false }
+    func hide(_ app: AppSnapshot) { _ = running(app)?.hide() }
 
-    func unhide(_ app: AppSnapshot) -> Bool { running(app)?.unhide() ?? false }
+    func unhide(_ app: AppSnapshot) { _ = running(app)?.unhide() }
 
-    /// Activation cooperative : Rideau cede la main s'il l'a, puis l'app la reprend.
+    /// Rendre la main a une app. Activation cooperative si Rideau l'a (il la cede) ; sinon macOS refuse
+    /// `activate` a une app d'arriere-plan : on passe par LaunchServices (comme le Dock), seulement pour une app
+    /// qui avait une fenetre a l'ecran (sans fenetre, la reouverture en creerait une).
     func activate(_ app: AppSnapshot) {
         guard let target = running(app) else { return }
         if NSApp.isActive { NSApp.yieldActivation(to: target) }
-        if !target.activate(from: .current, options: []) { _ = target.activate(options: []) }
+        if target.activate(from: .current, options: []) { return }
+        guard app.rank != nil, let url = target.bundleURL else { return }
+        let configuration = NSWorkspace.OpenConfiguration()
+        configuration.activates = true
+        configuration.addsToRecentItems = false
+        configuration.promptsUserIfNeeded = false
+        NSWorkspace.shared.openApplication(at: url, configuration: configuration) { _, _ in }
     }
 
     func icon(for app: AppSnapshot) -> NSImage? {

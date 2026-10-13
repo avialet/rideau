@@ -38,7 +38,8 @@ final class CurtainSettings {
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         func bool(_ key: String, _ fallback: Bool) -> Bool {
-            defaults.object(forKey: Brand.key(key)) as? Bool ?? fallback
+            // `bool(forKey:)` lit aussi "YES"/"NO" (arguments -RideauToast NO, `defaults write`).
+            defaults.object(forKey: Brand.key(key)) == nil ? fallback : defaults.bool(forKey: Brand.key(key))
         }
         keepFrontmost = bool("KeepFrontmost", true)
         keepFullScreen = bool("KeepFullScreen", true)
