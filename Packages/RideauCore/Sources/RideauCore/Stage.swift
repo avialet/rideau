@@ -101,6 +101,15 @@ public struct Backstage: Codable, Equatable, Sendable {
         return copy
     }
 
+    /// Apps restees visibles malgre la demande : retirees (on ne les reaffichera pas), noms retenus.
+    public func refusing(_ apps: [AppSnapshot]) -> Backstage {
+        guard !apps.isEmpty else { return self }
+        var copy = self
+        copy.hidden.removeAll { hidden in apps.contains { $0.isSameInstance(as: hidden) } }
+        copy.refused += apps.map(\.name)
+        return copy
+    }
+
     /// Ne garder que les apps effectivement masquees.
     public func keeping(pids: Set<Int32>) -> Backstage {
         var copy = self
@@ -148,6 +157,12 @@ public enum Stage {
         unhide.sort { !frontToBack($0, $1) }
         let activate = backstage.frontmost.flatMap { front in unhide.first { $0.isSameInstance(as: front) } }
         return RaisePlan(unhide: unhide, activate: activate, gone: gone)
+    }
+
+    /// Apps du rideau encore la et toujours visibles : `hide()` ne dit pas de facon fiable s'il a reussi
+    /// (il peut rendre faux et masquer quand meme), on verifie donc l'etat reel un instant apres.
+    public static func refusals(backstage: Backstage, running: [AppSnapshot]) -> [AppSnapshot] {
+        backstage.hidden.filter { app in running.contains { $0.isSameInstance(as: app) && !$0.isHidden } }
     }
 
     /// Ordre de l'avant vers l'arriere : rang croissant, sans rang a la fin, puis nom et pid.

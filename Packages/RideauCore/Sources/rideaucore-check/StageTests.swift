@@ -103,6 +103,19 @@ let stageTests: [Test] = [
         let kept = backstage.keeping(pids: [2])
         expectEqual(kept.hidden.map(\.pid), [2])
     },
+    Test("refusals : apps demandees mais restees visibles (hide() ne renseigne pas : on verifie)") {
+        let backstage = Backstage(loweredAt: .now, frontmost: nil,
+                                  hidden: [app(1, "a", "A"), app(2, "b", "B"), app(3, "c", "C")])
+        let now = [app(1, "a", "A", hidden: true), app(2, "b", "B", hidden: false)]
+        expectEqual(Stage.refusals(backstage: backstage, running: now).map(\.pid), [2])
+    },
+    Test("Backstage.refusing retire les refus et retient leurs noms") {
+        let backstage = Backstage(loweredAt: .now, frontmost: nil, hidden: [app(1, "a", "A"), app(2, "b", "B")])
+        let next = backstage.refusing([app(2, "b", "B")])
+        expectEqual(next.hidden.map(\.pid), [1])
+        expectEqual(next.refused, ["B"])
+        expectEqual(backstage.refusing([]), backstage)
+    },
     Test("CurtainPolicy : visios par defaut toujours visibles") {
         expect(CurtainPolicy.defaultAlwaysVisible.contains("us.zoom.xos"))
         expect(CurtainPolicy.defaultAlwaysVisible.contains("com.apple.FaceTime"))
