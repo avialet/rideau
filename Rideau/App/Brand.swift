@@ -11,8 +11,10 @@ enum Brand {
                                        deep: 0x0F000D, pale: 0xFEEBFA,
                                        night: 0x271223, nightInk: 0xF1C9E8)
     /// Pictogramme de la plaque : sous-ensemble SVG absolu (M L H V C Q Z), boite 0-100, trait non rempli.
-    /// Vide = initiale en repli. Dessiner le trace, verifier avec `swift ../scripts/plaque.swift planche`, puis `make icon`.
-    static let glyph = ""
+    /// Tringle et deux pans retenus : le rideau leve.
+    static let glyph = "M 14 20 H 86 M 24 20 V 82 M 76 20 V 82 M 46 20 C 44 42 32 52 24 58 M 54 20 C 56 42 68 52 76 58"
+    /// Rideau ferme : icone de barre des menus tant que le rideau est baisse.
+    static let loweredGlyph = "M 14 20 H 86 M 24 20 V 82 M 50 20 V 82 M 76 20 V 82"
     /// Trait du glyphe en `deep` plutot qu'en blanc (accent trop clair pour un trait blanc).
     static let strokeDeep = false
     static let identity = AppIdentity(name: name, displayName: displayName, repository: "avialet/rideau",
@@ -29,8 +31,8 @@ extension Updater {
 }
 
 extension HotKeyController {
-    /// Choisir un raccourci libre : ⇧⌘Espace (Pico), ⌃⌥⌘Espace (Allege), ⌃⇧Espace (Pince) et ⌥⇧Espace (Brouillon)
-    /// sont deja pris. Mettre a jour la ligne « Raccourci global » du README.
+    /// Opt-Maj-Cmd-Espace : libre dans le portefeuille (Pico, Allege, Pince, Brouillon, Chuchote, Range, Eveil,
+    /// Lanterne ont le leur).
     static let shared = HotKeyController(defaultsKey: Brand.key("HotKey"), logName: Brand.displayName,
-                                         initial: .space([.control, .option, .shift]))
+                                         initial: .space([.option, .shift, .command]))
 }
