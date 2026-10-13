@@ -5,37 +5,47 @@ import VialetKit
 struct RideauApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var state = AppState.shared
-    @AppStorage(Brand.key("MenuBar")) private var menuBarVisible = true
 
     /// Teintes de l'app avant le premier rendu (et police Bricolage Grotesque des titres).
     init() { Theme.configure(Brand.palette) }
 
     var body: some Scene {
         Window(Brand.displayName, id: "main") {
-            MainWindow()
+            SceneWindow()
                 .environment(state)
                 .fontDesign(.rounded)
-                .frame(minWidth: 640, minHeight: 420)
+                .frame(minWidth: 800, minHeight: 560)
                 .onAppear { AppearanceChoice.current(defaultsKey: Brand.key("Appearance")).apply(defaultsKey: Brand.key("Appearance")) }
                 .captureOpenWindow()
         }
         .windowStyle(.hiddenTitleBar)
         .windowBackgroundDragBehavior(.enabled)
-        .defaultSize(width: 860, height: 560)
-        .commands { AboutCommands(identity: Brand.identity) }
-
-        Settings {
-            SettingsView()
+        .defaultSize(width: 940, height: 700)
+        .commands {
+            AboutCommands(identity: Brand.identity)
+            UpdateCommands(updater: .shared)
+            CurtainCommands(curtain: state.curtain)
         }
 
-        MenuBarExtra(isInserted: $menuBarVisible) {
+        Settings {
+            SettingsView().environment(state)
+        }
+
+        MenuBarExtra(isInserted: state.menuBarInserted) {
             MenuBarContent().environment(state)
         } label: {
-            if Brand.glyph.isEmpty {
-                Image(systemName: "app.dashed") // repli tant que le glyphe n'est pas dessine
-            } else {
-                MenuBarIcon(glyph: Brand.glyph)
-            }
+            MenuBarIcon(glyph: Brand.glyph)
+        }
+    }
+}
+
+struct CurtainCommands: Commands {
+    let curtain: CurtainController
+
+    var body: some Commands {
+        CommandGroup(replacing: .newItem) {}
+        CommandMenu("Rideau") {
+            Button(curtain.isDown ? "Lever le rideau" : "Baisser le rideau") { curtain.toggle() }
         }
     }
 }

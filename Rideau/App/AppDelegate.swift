@@ -1,23 +1,67 @@
 import AppKit
+import RideauCore
 import VialetKit
+
+extension AppActions {
+    static let shared = AppActions(Brand.identity, open: { WindowSummoner.show() },
+                                   checkForUpdates: { WindowSummoner.show(); Updater.shared.check() })
+}
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    private var signalSources: [DispatchSourceSignal] = []
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         #if DEBUG
-        // Mode capture : ni raccourci global, ni reseau.
+        // Mode capture : ni raccourci, ni reseau, ni masquage reel.
         if runSnapshotIfRequested() { return }
         #endif
-        HotKeyController.shared.start { WindowSummoner.toggle() }
+        let curtain = AppState.shared.curtain
+        curtain.start()
+        HotKeyController.shared.start { AppState.shared.curtain.toggle() }
+        registerActions()
+        AppActions.shared.publish()
+        liftOnSignals()
+        // Rideau retrouve baisse (arret inattendu) : la Scene propose de le lever.
+        if curtain.machine.recovered { WindowSummoner.show() }
         // Laisse l'app s'afficher avant le moindre appel reseau.
         DispatchQueue.main.asyncAfter(deadline: .now() + 6) {
             MainActor.assumeIsolated { Updater.shared.checkAutomatically() }
         }
     }
 
-    /// Liens `rideau://` : ouvre la fenetre principale.
+    /// Actions rapides pour Vialet, Raccourcis et les automatisations (`rideau://basculer`, `baisser`, `lever`).
+    private func registerActions() {
+        let shortcut = HotKeyController.shared.shortcut.display
+        AppActions.shared.register(AppAction("basculer", title: "Baisser ou lever le rideau", symbol: "theatermasks",
+                                             shortcut: shortcut)) { AppState.shared.curtain.toggle() }
+        AppActions.shared.register(AppAction("baisser", title: "Baisser le rideau", symbol: "eye.slash")) {
+            AppState.shared.curtain.lower()
+        }
+        AppActions.shared.register(AppAction("lever", title: "Lever le rideau", symbol: "eye")) {
+            AppState.shared.curtain.raise()
+        }
+    }
+
+    /// `kill` (SIGTERM) ou Ctrl-C : on leve le rideau avant de partir, comme pour Cmd-Q.
+    private func liftOnSignals() {
+        for sig in [SIGTERM, SIGINT, SIGHUP] {
+            signal(sig, SIG_IGN)
+            let source = DispatchSource.makeSignalSource(signal: sig, queue: .main)
+            source.setEventHandler { MainActor.assumeIsolated { NSApp.terminate(nil) } }
+            source.resume()
+            signalSources.append(source)
+        }
+    }
+
     func application(_ application: NSApplication, open urls: [URL]) {
-        WindowSummoner.show()
+        AppActions.shared.handle(urls)
+    }
+
+    /// Quitter Rideau leve toujours le rideau.
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        AppState.shared.curtain.raiseNow()
+        return .terminateNow
     }
 
     /// L'app reste disponible (raccourci global, barre des menus) fenetre fermee.
@@ -28,23 +72,3 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return true
     }
 }
-
-#if DEBUG
-/// Mode capture sans ecran (voir SnapshotRunner) : `Rideau -RideauSnapshot <dossier>
-/// [-RideauSnapshotSeed 1] [-RideauSnapshotAppearance dark] [-RideauSnapshotOnly a,b]
-/// [-RideauSnapshotSize 1000x720]`, avec RIDEAU_DB_PATH vers une base jetable. Ecrit
-/// `mainWindow`, `settings` et `about` (`-sombre` en sombre) dans le dossier, puis quitte.
-extension AppDelegate {
-    func runSnapshotIfRequested() -> Bool {
-        guard SnapshotRequest.parse(prefix: Brand.name, arguments: CommandLine.arguments) != nil else { return false }
-        if UserDefaults.standard.bool(forKey: Brand.key("SnapshotSeed")) { seed() }
-        let standard = SnapshotRunner.standardScenarios(mainWindow: { WindowSummoner.mainWindow }, identity: Brand.identity)
-        // Scenarios propres a l'app : `+ [SnapshotScenario("detail") { ...; return WindowSummoner.mainWindow }]`.
-        return SnapshotRunner.runIfRequested(prefix: Brand.name, scenarios: standard)
-    }
-
-    /// Exemples neutres pour les captures, sans donnee personnelle (chaines en echappements ASCII).
-    private func seed() {
-    }
-}
-#endif
