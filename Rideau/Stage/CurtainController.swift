@@ -138,9 +138,10 @@ final class CurtainController {
                 hider.unhide(app)
             }
             count = plan.unhide.count
-            if let front = plan.activate {
+            // L'ancienne app active (masquee par Rideau) reprend la main, sauf si une autre l'a prise entre-temps.
+            if plan.activate != nil {
                 try? await Task.sleep(for: .milliseconds(80))
-                hider.activate(front)
+                if let front = plan.activation(frontmostPID: hider.activePID(), ownPID: ownPID) { hider.activate(front) }
             }
             trace("leve : reaffichees \(plan.unhide.map(\.name)), parties \(plan.gone.map(\.name)), reactivee \(plan.activate?.name ?? "-")")
         }
@@ -160,7 +161,7 @@ final class CurtainController {
         if let stage = backstage {
             let plan = Stage.planRaise(backstage: stage, running: hider.runningApps(), afterCrash: machine.recovered)
             for app in plan.unhide { hider.unhide(app) }
-            if let front = plan.activate { hider.activate(front) }
+            if let front = plan.activation(frontmostPID: hider.activePID(), ownPID: ownPID) { hider.activate(front) }
         }
         cover?.hide()
         file.erase()

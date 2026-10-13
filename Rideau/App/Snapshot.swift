@@ -68,6 +68,7 @@ final class SnapshotHider: Hider {
 
     func runningApps() -> [AppSnapshot] { apps.map(\.app) }
     func frontmostPID() -> Int32? { 501 }
+    func activePID() -> Int32? { 501 }
 
     func hide(_ app: AppSnapshot) { set(app.pid, hidden: true) }
     func unhide(_ app: AppSnapshot) { set(app.pid, hidden: false) }

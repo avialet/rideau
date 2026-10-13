@@ -10,6 +10,8 @@ protocol Hider: AnyObject {
     func runningApps() -> [AppSnapshot]
     /// App ordinaire au premier plan, hors Rideau (la derniere active si Rideau est devant).
     func frontmostPID() -> Int32?
+    /// App active en ce moment, quelle qu'elle soit (Rideau compris), nil si aucune.
+    func activePID() -> Int32?
     /// Demande de masquage. Sur macOS 26, `hide()` et `unhide()` peuvent rendre faux et agir quand meme :
     /// on ne s'y fie pas, l'etat reel (`isHidden`) est relu ensuite.
     func hide(_ app: AppSnapshot)
@@ -71,6 +73,8 @@ final class SystemHider: Hider {
         }
         return pid
     }
+
+    func activePID() -> Int32? { NSWorkspace.shared.frontmostApplication?.processIdentifier }
 
     func hide(_ app: AppSnapshot) { _ = running(app)?.hide() }
 

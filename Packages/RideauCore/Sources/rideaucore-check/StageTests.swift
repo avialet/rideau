@@ -103,6 +103,16 @@ let stageTests: [Test] = [
         let now = [app(1, "a", "A", hidden: false), app(2, "b", "B", hidden: true)]
         expectEqual(Stage.planRaise(backstage: backstage, running: now, afterCrash: true).unhide.map(\.pid), [2])
     },
+    Test("activation : seulement si personne d'autre n'a pris la main (Rideau, aucune app, ou une app du plan)") {
+        let front = app(10, "s", "Safari", rank: 0)
+        let plan = RaisePlan(unhide: [app(11, "m", "Mail"), front], activate: front, gone: [])
+        expectEqual(plan.activation(frontmostPID: nil, ownPID: 99)?.pid, 10)
+        expectEqual(plan.activation(frontmostPID: 99, ownPID: 99)?.pid, 10)
+        expectEqual(plan.activation(frontmostPID: 11, ownPID: 99)?.pid, 10)
+        expect(plan.activation(frontmostPID: 42, ownPID: 99) == nil)
+        let none = RaisePlan(unhide: [], activate: nil, gone: [])
+        expect(none.activation(frontmostPID: nil, ownPID: 99) == nil)
+    },
     Test("Backstage.releasing retire une app que l'utilisateur a reaffichee") {
         let backstage = Backstage(loweredAt: .now, frontmost: nil, hidden: [app(1, "a", "A"), app(2, "b", "B")])
         expectEqual(backstage.releasing(pid: 1).hidden.map(\.pid), [2])

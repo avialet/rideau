@@ -132,6 +132,13 @@ public struct RaisePlan: Equatable, Sendable {
         self.gone = gone
     }
 
+    /// App a reactiver, seulement si personne d'autre n'a pris la main entre-temps : l'app au premier plan
+    /// est Rideau, aucune, ou une app que l'on reaffiche.
+    public func activation(frontmostPID: Int32?, ownPID: Int32) -> AppSnapshot? {
+        guard let activate else { return nil }
+        guard let frontmostPID, frontmostPID != ownPID else { return activate }
+        return unhide.contains { $0.pid == frontmostPID } ? activate : nil
+    }
 }
 
 public enum Stage {
