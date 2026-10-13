@@ -58,11 +58,15 @@ final class CurtainController {
                     || note.name == NSWorkspace.didTerminateApplicationNotification
                 MainActor.assumeIsolated {
                     if released, let pid { self?.release(pid) }
-                    self?.refreshPreview()
+                    self?.refreshIfWatched()
                 }
             })
         }
-        refreshPreview()
+        // Menu de la barre des menus (ou de l'app) ouvert : apercu a jour pour sa ligne d'etat.
+        observers.append(NotificationCenter.default.addObserver(forName: NSMenu.didBeginTrackingNotification, object: nil,
+                                                                queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.refreshPreview() }
+        })
         cover?.preload()
         if machine.recovered { statusItem?.show { [weak self] in self?.raise() } }
     }
@@ -79,6 +83,22 @@ final class CurtainController {
         case .raise: Task { await performRaise() }
         case nil: break
         }
+    }
+
+    /// Vues qui montrent l'apercu (la Scene) : sans elles, pas de lecture des fenetres a chaque changement d'app.
+    @ObservationIgnored private var watchers: Set<String> = []
+
+    func watchPreview(_ id: String, _ watching: Bool) {
+        if watching {
+            watchers.insert(id)
+            refreshPreview()
+        } else {
+            watchers.remove(id)
+        }
+    }
+
+    private func refreshIfWatched() {
+        if !watchers.isEmpty { refreshPreview() }
     }
 
     func refreshPreview() {
@@ -132,7 +152,7 @@ final class CurtainController {
             }
         }
         if settings.showToast { toast?.show(.lowered(count: plan.count)) }
-        refreshPreview()
+        refreshIfWatched()
         Task { await verifyLowered(stage.loweredAt) }
     }
 
@@ -173,7 +193,7 @@ final class CurtainController {
         backstage = nil
         machine.finish()
         if settings.showToast { toast?.show(.raised(count: count)) }
-        refreshPreview()
+        refreshIfWatched()
     }
 
     /// Lever sans attendre (fin de Rideau) : tout ce qui a ete masque revient.

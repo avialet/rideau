@@ -25,6 +25,8 @@ struct SceneWindow: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(AmbientBackground())
         }
+        .onAppear { state.curtain.watchPreview("scene", true) }
+        .onDisappear { state.curtain.watchPreview("scene", false) }
     }
 
     private var content: some View {
