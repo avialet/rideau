@@ -1,5 +1,6 @@
 import AppKit
 import Observation
+import os
 import RideauCore
 
 /// Orchestration du rideau : baisser (masquer les autres apps, couvrir le bureau, sauvegarder ce qui a ete
@@ -87,6 +88,22 @@ final class CurtainController {
         fullScreenKept = policy.keepFullScreen ? apps.filter { $0.isRegular && !$0.isHidden && $0.isFullScreen } : []
     }
 
+    // MARK: Etat sauvegarde
+
+    @ObservationIgnored private static let log = Logger(subsystem: "fr.vialet.rideau", category: "rideau")
+
+    /// Ecrit l'etat ; un echec est consigne (Console, sous-systeme fr.vialet.rideau) et rendu.
+    @discardableResult
+    private func save(_ stage: Backstage) -> Bool {
+        do {
+            try file.write(stage)
+            return true
+        } catch {
+            Self.log.error("Etat du rideau non sauvegarde dans \(self.file.url.path, privacy: .public) : \(error.localizedDescription, privacy: .public)")
+            return false
+        }
+    }
+
     // MARK: Baisser
 
     private func performLower() {
@@ -94,8 +111,13 @@ final class CurtainController {
         let frontPID = hider.frontmostPID()
         let plan = Stage.planLower(apps: apps, frontmostPID: frontPID, policy: settings.policy(ownPID: ownPID))
         let stage = Backstage(loweredAt: .now, frontmost: apps.first { $0.pid == frontPID }, hidden: plan)
-        // Sauvegarde avant de masquer : un plantage au milieu laisse de quoi tout lever.
-        try? file.write(stage)
+        // Sauvegarde avant de masquer : un plantage au milieu laisse de quoi tout lever. Sans etat sauvegarde,
+        // pas de baisse (pas de restitution possible apres un arret).
+        guard save(stage) else {
+            machine.fail()
+            NSSound.beep()
+            return
+        }
         for app in plan { hider.hide(app) }
         backstage = stage
         machine.finish()
@@ -121,7 +143,7 @@ final class CurtainController {
         let next = stage.refusing(Stage.refusals(backstage: stage, running: hider.runningApps()))
         if next != stage {
             backstage = next
-            try? file.write(next)
+            save(next)
         }
         trace("baisse : masquees \(next.hidden.map(\.name)), refus \(next.refused), devant \(next.frontmost?.name ?? "-")")
     }
@@ -173,7 +195,7 @@ final class CurtainController {
         guard machine.state == .lowered, let stage = backstage, stage.hidden.contains(where: { $0.pid == pid }) else { return }
         let next = stage.releasing(pid: pid)
         backstage = next
-        try? file.write(next)
+        save(next)
     }
 
     /// Journal des essais reels (DEBUG, `RIDEAU_TRACE=<fichier>`).
