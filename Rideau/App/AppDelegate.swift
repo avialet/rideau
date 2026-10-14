@@ -20,7 +20,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         curtain.start()
         HotKeyController.shared.start { AppState.shared.curtain.toggle() }
         registerActions()
-        AppActions.shared.publish()
+        _ = DockPresence.shared
+        HubPresence.start(menuBar: MenuBarPresence.shared, actions: AppActions.shared, updater: Updater.shared)
         liftOnSignals()
         // Rideau retrouve baisse (arret inattendu) : la Scene propose de le lever.
         if curtain.machine.recovered { WindowSummoner.show() }

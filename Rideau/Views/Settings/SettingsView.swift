@@ -9,9 +9,10 @@ struct SettingsView: View {
     var body: some View {
         @Bindable var settings = state.settings
         SettingsScreen(app: Brand.identity, hotKey: HotKeyController.shared, updater: Updater.shared,
-                       menuBar: MenuBarPresence.shared,
+                       menuBar: MenuBarPresence.shared, dock: DockPresence.shared,
                        hotKeyHint: "Depuis n\u{2019}importe quelle app : baisse le rideau, puis le l\u{00E8}ve.",
                        alwaysOnHint: "Fermer la fen\u{00EA}tre ne quitte pas Rideau : le raccourci reste actif. Quitter Rideau (\u{2318}Q) l\u{00E8}ve toujours le rideau.",
+                       updateNote: HubPresence.updateNote,
                        width: 480) {
             SettingsCard(icon: "capsule.fill", color: Theme.accent, title: "Pastille") {
                 Toggle("Annoncer le rideau en bas de l\u{2019}\u{00E9}cran", isOn: $settings.showToast)
